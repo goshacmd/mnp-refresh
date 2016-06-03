@@ -36,3 +36,52 @@ a:hover {
 table {
   width: 100%;
 }
+
+.Table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.TableRow, .TableHeader {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.TableHeader {
+  font-weight: bold;
+}
+
+.TableHeaderDetail {
+  font-weight: bold;
+  text-align: center;
+}
+
+.TableDetail, .TableHeaderDetail {
+  flex: 1 0 144px;
+}
+
+.Calculator input, .Calculator button {
+  font-size: 24px;
+}
+
+.Calculator input {
+  width: 6em;
+  text-align: center;
+  border-radius: 5px;
+  border: 1px solid #bebebe;
+  height: 40px;
+  margin-right: 1em;
+}
+
+.Calculator button {
+  appearance: none;
+  background-color: #8a8a8a;
+  color: #fff;
+  border-radius: 5px;
+  border: 1px solid #bebebe;
+  font-size: 18px;
+  padding: 10px;
+  height: 40px;
+}

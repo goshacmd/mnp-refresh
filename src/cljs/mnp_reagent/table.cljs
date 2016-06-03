@@ -1,34 +1,32 @@
 (ns mnp-reagent.table)
 
 (defn table [& children]
-  [:table children])
+  [:div.Table children])
 
 (defn table-row [& children]
-  [:tr children])
+  (into [:div.TableRow] children))
 
 (defn table-detail [& children]
-  [:td children])
+  [:div.TableDetail children])
 
-(defn table-header [& children]
-  [:thead [:tr children]])
+(defn -table-header [& children]
+  [:div.TableRow children])
 
 (defn table-header-detail [& children]
-  [:th children])
+  [:div.TableHeaderDetail children])
 
 (defn table-body [& children]
-  [:tbody children])
+  [:div.TableBody children])
+
+(defn table-header [column-names]
+  [-table-header
+   (map (fn [x] [table-header-detail x]) column-names)])
 
 (defn- present-val [[key fun] item]
   (fun (item key)))
 
-(defn id [x] x)
-(defn data-table [{:keys [columns data]}]
-  (let [column-names (map first columns)
-        column-keys (map (fn [x] [(second x) (get x 2 id)]) columns)]
-    [table
-     [table-header
-      (map (fn [x] [table-header-detail x]) column-names)]
-     [table-body
-      (map (fn [item]
-             [table-row (map (fn [x] [table-detail (present-val x item)]) column-keys)])
-           data)]]))
+(defn table-column-row
+  ([column-keys item]
+   (table-column-row {} column-keys item))
+  ([params column-keys item]
+   [table-row params (map (fn [x] [table-detail (present-val x item)]) column-keys)]))
