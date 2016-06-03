@@ -6,20 +6,37 @@
               [accountant.core :as accountant]
               [mnp-reagent.country-desc :refer [country-desc]]
               [mnp-reagent.calculate :refer [calculate-items]]
-              [mnp-reagent.table :refer [table table-header table-body table-column-row]]))
+              [mnp-reagent.table :refer [table table-header table-header-detail table-body table-row table-detail ]]))
 
-(def app-db (atom {:income 50000,
-                   :sort-by :effective_total}))
+(defonce app-db (atom {:income 50000,
+                   :sort-by [:effective_total, :asc]}))
+
+(defn dir-sort-by [coll [f dir]]
+  (let [sorted (sort-by #(get % f) coll)]
+    (if (= dir :asc)
+      sorted
+      (reverse sorted))))
 
 (def income (reaction (get @app-db :income)))
+(def -sort-by (reaction (get @app-db :sort-by)))
 (def -country-items (reaction (calculate-items country-desc @income)))
 (def country-items
-  (reaction (sort-by #(get % (get @app-db :sort-by)) @-country-items)))
+  (reaction (dir-sort-by @-country-items @-sort-by)))
 
-(defn set-income [v]
-  (->> v
-       (assoc @app-db :income)
-       (reset! app-db)))
+(defn set-income [app-db [v]]
+  (assoc app-db :income v))
+
+(defn set-sort-by [app-db [prop dir]]
+  (assoc app-db :sort-by [prop dir]))
+
+(def handlers
+  {:set-income set-income
+   :set-sort-by set-sort-by})
+
+(defn handle [[type & args]]
+  (let [handler (handlers type)]
+    (reset! app-db (handler @app-db args))))
+
 
 ;; ---
 ;; Components
@@ -32,24 +49,41 @@
 (def format-money #(format-num % {:prefix "$"}))
 (def format-percent #(format-num % {:postfix "%"}))
 
-(defn country-row [item column-keys]
+(defn country-row [item]
   [:div.country-row
-    [table-column-row column-keys item]])
+   [table-row
+    [table-detail (get item :country)]
+    [table-detail (format-money (get item :effective_tax))]
+    [table-detail (format-money (get item :effective_soc_sec))]
+    [table-detail (format-percent (get item :effective_percent))]
+    [table-detail (format-money (get item :effective_total))]]])
 
-(defn id [x] x)
+(defn html-char [code]
+  [:span {:dangerouslySetInnerHTML {:__html code}}])
+
+
+(defn header-sortable-item [name property [sel dir]]
+  (let [dir (if (= sel property) dir nil)
+        click-dir (if (= dir :asc) :desc :asc)]
+    [table-header-detail {:on-click #(handle [:set-sort-by property click-dir])}
+                         name
+                         [html-char (case dir
+                                          :asc " &darr;"
+                                          :desc " &uarr;"
+                                          nil)]]))
+
 (defn result-table [items]
-  (let [columns [["Country" :country]
-                 ["Eff income tax" :effective_tax format-money]
-                 ["Eff soc sec" :effective_soc_sec format-money]
-                 ["Eff rate" :effective_percent format-percent]
-                 ["Eff total" :effective_total format-money]]
-        column-names (map first columns)
-        column-keys (map (fn [x] [(second x) (get x 2 id)]) columns)]
+  (fn []
     [table
-     [table-header column-names]
-     [table-body
-      (map (fn [x] [country-row x column-keys])
-           items)]]))
+      [table-header
+        [header-sortable-item "Country" :country @-sort-by]
+        [header-sortable-item "Eff income tax" :effective_tax @-sort-by]
+        [header-sortable-item "Eff soc sec" :effective_soc_sec @-sort-by]
+        [header-sortable-item "Eff rate" :effective_percent @-sort-by]
+        [header-sortable-item "Eff total" :effective_total @-sort-by]]
+      [table-body
+        (map (fn [x] [country-row x])
+              items)]]))
 
 ;; -------------------------
 ;; Views
@@ -63,12 +97,13 @@
                               (-> e
                                   (aget "target" "elements" 0 "value")
                                   (js/parseInt)
-                                  (set-income))
+                                  ((fn [x] [:set-income x]))
+                                  (handle))
                               (.preventDefault e))}
           [:input {:placeholder "Annual income, e.g. 50000" :default-value @income}]
           [:button "Calculate"]]
         [:p "Assuming self-employment (freelance or working remotely) and no deductibles."]
-        ^{:key @income}[result-table @country-items]])))
+        ^{:key [@-sort-by @income]}[result-table @country-items]])))
 
 (defn home-page []
   [:div [:h2 "Welcome to mnp-reagent"]
